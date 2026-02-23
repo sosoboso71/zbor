@@ -130,10 +130,10 @@ function applyEffect(o) {
     }
 
     if (EFFECT === "gravity") {
-        o.vy += 0.15; // gravitație
+        o.vy += 0.15;
         if (o.y > canvas.height - 20) {
             o.y = canvas.height - 20;
-            o.vy *= -0.7; // săritură
+            o.vy *= -0.7;
         }
     }
 
@@ -143,7 +143,7 @@ function applyEffect(o) {
     }
 
     if (EFFECT === "explosion") {
-        // nimic special, doar viteză mare inițială
+        // viteza mare inițială, nimic special aici
     }
 }
 
@@ -158,12 +158,10 @@ function loop() {
     for (let i = objects.length - 1; i >= 0; i--) {
         const o = objects[i];
 
-        // mișcare
         o.x += o.vx;
         o.y += o.vy;
         o.rot += o.vr;
 
-        // aplicăm efectul
         applyEffect(o);
 
         ctx.save();
@@ -213,7 +211,7 @@ function getProfileUrl(data) {
 const ws = new WebSocket("ws://localhost:62024");
 
 // regex compatibil Live Studio
-const emojiRegex = /[\u2600-\u27BF\u1F300-\u1FAFF]/g;
+const emojiRegex = /([\u203C-\u3299]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|\uD83E[\uDD00-\uDFFF])/g;
 
 ws.onmessage = (event) => {
     const packet = JSON.parse(event.data);
@@ -228,7 +226,12 @@ ws.onmessage = (event) => {
         let msgEmojis = msg.match(emojiRegex) || [];
         let nameEmojis = user.match(emojiRegex) || [];
 
-        [...msgEmojis, ...nameEmojis].forEach(e => {
+        const allEmojis = [...msgEmojis, ...nameEmojis];
+
+        // NU afișăm nimic dacă nu există emoji
+        if (allEmojis.length === 0) return;
+
+        allEmojis.forEach(e => {
             if (profileUrl) spawnProfileEmoji(e, profileUrl);
             else spawnEmoji(e);
         });
