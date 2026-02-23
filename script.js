@@ -1,4 +1,10 @@
- // -----------------------------
+  // -----------------------------
+// CONFIG
+// -----------------------------
+const EFFECT = "bounce"; 
+// alege: "bounce", "gravity", "chaos", "explosion"
+
+// -----------------------------
 // CANVAS SETUP
 // -----------------------------
 const canvas = document.getElementById("canvas");
@@ -12,43 +18,83 @@ resize();
 window.onresize = resize;
 
 // -----------------------------
-// OBIECTE (emoji + profile pics)
+// OBIECTE
 // -----------------------------
 let objects = [];
-const MAX_OBJECTS = 150;
+const MAX_OBJECTS = 200;
 
 // -----------------------------
-// HELPER: OBTINE POZA DE PROFIL (INDOfinity)
+// DESENARE POZĂ ÎN CERC CU CONTUR + UMBRĂ
 // -----------------------------
-function getProfileUrl(data) {
-    if (data.userDetails &&
-        data.userDetails.profilePictureUrls &&
-        data.userDetails.profilePictureUrls.length > 0) {
-        return data.userDetails.profilePictureUrls[0];
-    }
-    return null;
+function drawCircleImage(ctx, img, x, y, size) {
+    ctx.save();
+
+    // UMBRĂ
+    ctx.shadowColor = "rgba(0,0,0,0.8)";
+    ctx.shadowBlur = 15;
+
+    // CONTUR ALB
+    ctx.beginPath();
+    ctx.arc(x, y, size / 2 + 4, 0, Math.PI * 2);
+    ctx.strokeStyle = "white";
+    ctx.lineWidth = 6;
+    ctx.stroke();
+
+    // POZA
+    ctx.shadowBlur = 0;
+    ctx.beginPath();
+    ctx.arc(x, y, size / 2, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.drawImage(img, x - size / 2, y - size / 2, size, size);
+
+    ctx.restore();
 }
 
 // -----------------------------
-// SPAWN EMOJI SIMPLU (FĂRĂ POZĂ)
+// SPAWN EMOJI
 // -----------------------------
-function spawnEmojiOnly(emoji) {
+function spawnEmoji(emoji) {
     if (objects.length > MAX_OBJECTS) return;
 
     objects.push({
-        type: "emojiOnly",
+        type: "emoji",
         emoji: emoji,
         x: Math.random() * canvas.width,
         y: Math.random() * canvas.height,
-        vx: (Math.random() * 2 - 1) * 3,
-        vy: (Math.random() * 2 - 1) * 3,
+        vx: (Math.random() * 4 - 2),
+        vy: (Math.random() * 4 - 2),
         size: 40 + Math.random() * 40,
-        born: Date.now()
+        born: Date.now(),
+        rot: Math.random() * Math.PI * 2,
+        vr: (Math.random() - 0.5) * 0.1
     });
 }
 
 // -----------------------------
-// SPAWN EMOJI + PROFILE PIC
+// SPAWN STICKER
+// -----------------------------
+function spawnSticker(url) {
+    if (objects.length > MAX_OBJECTS) return;
+
+    const img = new Image();
+    img.src = url;
+
+    objects.push({
+        type: "sticker",
+        img: img,
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        vx: (Math.random() * 4 - 2),
+        vy: (Math.random() * 4 - 2),
+        size: 80,
+        born: Date.now(),
+        rot: Math.random() * Math.PI * 2,
+        vr: (Math.random() - 0.5) * 0.05
+    });
+}
+
+// -----------------------------
+// SPAWN PROFILE + EMOJI
 // -----------------------------
 function spawnProfileEmoji(emoji, profileUrl) {
     if (objects.length > MAX_OBJECTS) return;
@@ -58,72 +104,51 @@ function spawnProfileEmoji(emoji, profileUrl) {
     img.src = profileUrl;
 
     img.onload = () => {
-        const animations = ["bounce", "float", "explode", "spin"];
-
         objects.push({
             type: "profileEmoji",
             img: img,
             emoji: emoji,
             x: Math.random() * canvas.width,
-            y: canvas.height + 50,
-            size: 60,
-            alpha: 1,
-            vx: (Math.random() - 0.5) * 2,
-            vy: -2 - Math.random() * 2,
-            rotation: 0,
-            rotationSpeed: (Math.random() - 0.5) * 0.1,
-            animationType: animations[Math.floor(Math.random() * animations.length)],
-            born: Date.now()
+            y: Math.random() * canvas.height,
+            vx: (Math.random() * 4 - 2),
+            vy: (Math.random() * 4 - 2),
+            size: 70,
+            born: Date.now(),
+            rot: Math.random() * Math.PI * 2,
+            vr: (Math.random() - 0.5) * 0.05
         });
     };
 }
 
 // -----------------------------
-// DESENARE POZĂ ÎN CERC
+// EFECTE
 // -----------------------------
-function drawCircleImage(ctx, img, x, y, size, rotation) {
-    ctx.save();
-    ctx.translate(x + size/2, y + size/2);
-    ctx.rotate(rotation);
-    ctx.beginPath();
-    ctx.arc(0, 0, size/2, 0, Math.PI * 2);
-    ctx.closePath();
-    ctx.clip();
-    ctx.drawImage(img, -size/2, -size/2, size, size);
-    ctx.restore();
-}
+function applyEffect(o) {
+    if (EFFECT === "bounce") {
+        if (o.x < 0 || o.x > canvas.width) o.vx *= -1;
+        if (o.y < 0 || o.y > canvas.height) o.vy *= -1;
+    }
 
-// -----------------------------
-// ANIMAȚII RANDOM
-// -----------------------------
-function animateBounce(o) {
-    o.vy += 0.1;
-    o.y += o.vy;
-    if (o.y > canvas.height - o.size) {
-        o.y = canvas.height - o.size;
-        o.vy *= -0.7;
+    if (EFFECT === "gravity") {
+        o.vy += 0.15; // gravitație
+        if (o.y > canvas.height - 20) {
+            o.y = canvas.height - 20;
+            o.vy *= -0.7; // săritură
+        }
+    }
+
+    if (EFFECT === "chaos") {
+        o.vx += (Math.random() - 0.5) * 0.2;
+        o.vy += (Math.random() - 0.5) * 0.2;
+    }
+
+    if (EFFECT === "explosion") {
+        // nimic special, doar viteză mare inițială
     }
 }
 
-function animateFloat(o) {
-    o.y -= 1.5;
-    o.alpha -= 0.003;
-}
-
-function animateExplode(o) {
-    o.x += o.vx * 5;
-    o.y += o.vy * 5;
-    o.alpha -= 0.01;
-}
-
-function animateSpin(o) {
-    o.y -= 1.2;
-    o.rotation += o.rotationSpeed;
-    o.alpha -= 0.004;
-}
-
 // -----------------------------
-// LOOP DE RANDAT
+// LOOP
 // -----------------------------
 function loop() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -133,43 +158,39 @@ function loop() {
     for (let i = objects.length - 1; i >= 0; i--) {
         const o = objects[i];
 
-        if (o.type === "profileEmoji") {
-            if (o.animationType === "bounce") animateBounce(o);
-            if (o.animationType === "float") animateFloat(o);
-            if (o.animationType === "explode") animateExplode(o);
-            if (o.animationType === "spin") animateSpin(o);
+        // mișcare
+        o.x += o.vx;
+        o.y += o.vy;
+        o.rot += o.vr;
 
-            ctx.globalAlpha = o.alpha;
+        // aplicăm efectul
+        applyEffect(o);
 
-            drawCircleImage(ctx, o.img, o.x, o.y, o.size, o.rotation);
+        ctx.save();
+        ctx.translate(o.x, o.y);
+        ctx.rotate(o.rot);
 
-            ctx.font = "40px Arial";
-            ctx.fillText(o.emoji, o.x + o.size + 10, o.y + o.size * 0.75);
-
-            ctx.globalAlpha = 1;
-
-            if (now - o.born > 6000 || o.alpha <= 0) {
-                objects.splice(i, 1);
-            }
-        }
-
-        if (o.type === "emojiOnly") {
-            o.x += o.vx;
-            o.y += o.vy;
-            o.vx *= 0.99;
-            o.vy *= 0.99;
-
-            if (o.x < 0 || o.x > canvas.width) o.vx *= -1;
-            if (o.y < 0 || o.y > canvas.height) o.vy *= -1;
-
+        if (o.type === "emoji") {
             ctx.font = o.size + "px Arial";
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
-            ctx.fillText(o.emoji, o.x, o.y);
+            ctx.fillText(o.emoji, 0, 0);
+        }
 
-            if (now - o.born > 6000) {
-                objects.splice(i, 1);
-            }
+        if (o.type === "sticker" && o.img.complete) {
+            ctx.drawImage(o.img, -o.size/2, -o.size/2, o.size, o.size);
+        }
+
+        if (o.type === "profileEmoji" && o.img.complete) {
+            drawCircleImage(ctx, o.img, 0, 0, o.size);
+            ctx.font = "40px Arial";
+            ctx.fillText(o.emoji, o.size/2 + 10, 0);
+        }
+
+        ctx.restore();
+
+        if (now - o.born > 7000) {
+            objects.splice(i, 1);
         }
     }
 
@@ -178,99 +199,56 @@ function loop() {
 loop();
 
 // -----------------------------
-// WEBSOCKET INDOfinity
+// EXTRAGERE POZĂ PROFIL
+// -----------------------------
+function getProfileUrl(data) {
+    if (data.profilePictureUrl) return data.profilePictureUrl;
+    if (data.userDetails?.profilePictureUrls?.[0]) return data.userDetails.profilePictureUrls[0];
+    return null;
+}
+
+// -----------------------------
+// WEBSOCKET
 // -----------------------------
 const ws = new WebSocket("ws://localhost:62024");
 
-ws.onopen = () => console.log("Conectat la Indofinity");
+// regex compatibil Live Studio
+const emojiRegex = /[\u2600-\u27BF\u1F300-\u1FAFF]/g;
 
 ws.onmessage = (event) => {
-    try {
-        const packet = JSON.parse(event.data);
-        console.log(
-    "%c================ PACKET RECEIVED ================",
-    "background:#222; color:#0f0; padding:6px; font-size:14px;"
-);
+    const packet = JSON.parse(event.data);
 
-console.log(
-    "%cEVENT:",
-    "color:#0ff; font-size:14px;",
-    packet.event
-);
+    if (packet.event === "chat") {
+        const data = packet.data;
 
-console.log(
-    "%cDATA:",
-    "color:#ff0; font-size:14px;",
-    packet.data
-);
+        const msg = data.comment || "";
+        const user = data.nickname || "";
+        const profileUrl = getProfileUrl(data);
 
-console.log(
-    "%cNICKNAME:",
-    "color:#0af; font-size:14px;",
-    packet?.data?.nickname
-);
+        let msgEmojis = msg.match(emojiRegex) || [];
+        let nameEmojis = user.match(emojiRegex) || [];
 
-console.log(
-    "%cCOMMENT:",
-    "color:#f0f; font-size:14px;",
-    packet?.data?.comment
-);
+        [...msgEmojis, ...nameEmojis].forEach(e => {
+            if (profileUrl) spawnProfileEmoji(e, profileUrl);
+            else spawnEmoji(e);
+        });
 
-console.log(
-    "%cPROFILE URL (direct):",
-    "color:#0f0; font-size:14px;",
-    packet?.data?.profilePictureUrl || "NU EXISTA"
-);
-
-console.log(
-    "%cPROFILE URL (userDetails):",
-    "color:#0f0; font-size:14px;",
-    packet?.data?.userDetails?.profilePictureUrls?.[0] || "NU EXISTA"
-);
-
-console.log(
-    "%cUSER DETAILS:",
-    "color:#fa0; font-size:14px;",
-    packet?.data?.userDetails
-);
-
-console.log(
-    "%cFULL JSON:",
-    "background:#111; color:#0f0; padding:6px;",
-    JSON.stringify(packet, null, 2)
-);
-        // CHAT
-        if (packet.event === "chat") {
-            const data = packet.data;
-
-            const msg = data.comment || "";
-            const user = data.nickname || "";
-            const profile = getProfileUrl(data);
-
-            const emojiRegex = /\p{Emoji_Presentation}|\p{Emoji}\uFE0F/gu;
-            let msgEmojis = msg.match(emojiRegex) || [];
-            let nameEmojis = user.match(emojiRegex) || [];
-
-            [...msgEmojis, ...nameEmojis].forEach(e => {
-                if (profile) spawnProfileEmoji(e, profile);
-                else spawnEmojiOnly(e);
+        if (data.emotes) {
+            data.emotes.forEach(e => {
+                if (e.emoteImageUrl) spawnSticker(e.emoteImageUrl);
             });
         }
+    }
 
-        // GIFT
-        if (packet.event === "gift") {
-            const g = packet.data;
-            const profile = getProfileUrl(g);
+    if (packet.event === "gift") {
+        const g = packet.data;
+        const profileUrl = getProfileUrl(g);
 
-            let emo = "🎉";
-            if (g.diamondCount > 1 && g.diamondCount <= 20) emo = "💥";
-            else if (g.diamondCount > 20) emo = "🤯";
+        let emo = "🎉";
+        if (g.diamondCount > 1 && g.diamondCount <= 20) emo = "💥";
+        else if (g.diamondCount > 20) emo = "🤯";
 
-            if (profile) spawnProfileEmoji(emo, profile);
-            else spawnEmojiOnly(emo);
-        }
-
-    } catch (err) {
-        console.error(err);
+        if (profileUrl) spawnProfileEmoji(emo, profileUrl);
+        else spawnEmoji(emo);
     }
 };
