@@ -29,18 +29,15 @@ const MAX_OBJECTS = 200;
 function drawCircleImage(ctx, img, x, y, size) {
     ctx.save();
 
-    // UMBRĂ
     ctx.shadowColor = "rgba(0,0,0,0.8)";
     ctx.shadowBlur = 15;
 
-    // CONTUR ALB
     ctx.beginPath();
     ctx.arc(x, y, size / 2 + 4, 0, Math.PI * 2);
     ctx.strokeStyle = "white";
     ctx.lineWidth = 6;
     ctx.stroke();
 
-    // POZA
     ctx.shadowBlur = 0;
     ctx.beginPath();
     ctx.arc(x, y, size / 2, 0, Math.PI * 2);
@@ -51,7 +48,7 @@ function drawCircleImage(ctx, img, x, y, size) {
 }
 
 // -----------------------------
-// SPAWN EMOJI
+// SPAWN EMOJI (SEPARAT)
 // -----------------------------
 function spawnEmoji(emoji) {
     if (objects.length > MAX_OBJECTS) return;
@@ -63,7 +60,7 @@ function spawnEmoji(emoji) {
         y: Math.random() * canvas.height,
         vx: (Math.random() * 4 - 2),
         vy: (Math.random() * 4 - 2),
-        size: 40 + Math.random() * 40,
+        size: 60,
         born: Date.now(),
         rot: Math.random() * Math.PI * 2,
         vr: (Math.random() - 0.5) * 0.1
@@ -94,7 +91,7 @@ function spawnSticker(url) {
 }
 
 // -----------------------------
-// SPAWN PROFILE + EMOJI
+// SPAWN PROFILE + EMOJI (SEPARATE)
 // -----------------------------
 function spawnProfileEmoji(emoji, profileUrl) {
     if (objects.length > MAX_OBJECTS) return;
@@ -104,10 +101,10 @@ function spawnProfileEmoji(emoji, profileUrl) {
     img.src = profileUrl;
 
     img.onload = () => {
+        // POZA SEPARATĂ
         objects.push({
-            type: "profileEmoji",
+            type: "profile",
             img: img,
-            emoji: emoji,
             x: Math.random() * canvas.width,
             y: Math.random() * canvas.height,
             vx: (Math.random() * 4 - 2),
@@ -116,6 +113,20 @@ function spawnProfileEmoji(emoji, profileUrl) {
             born: Date.now(),
             rot: Math.random() * Math.PI * 2,
             vr: (Math.random() - 0.5) * 0.05
+        });
+
+        // EMOJI SEPARAT
+        objects.push({
+            type: "emoji",
+            emoji: emoji,
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            vx: (Math.random() * 4 - 2),
+            vy: (Math.random() * 4 - 2),
+            size: 60,
+            born: Date.now(),
+            rot: Math.random() * Math.PI * 2,
+            vr: (Math.random() - 0.5) * 0.1
         });
     };
 }
@@ -148,7 +159,7 @@ function applyEffect(o) {
 }
 
 // -----------------------------
-// LOOP
+// LOOP (VERSIUNEA CORECTĂ — POZE ȘI EMOJI SEPARATE)
 // -----------------------------
 function loop() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -164,28 +175,35 @@ function loop() {
 
         applyEffect(o);
 
-        ctx.save();
-        ctx.translate(o.x, o.y);
-        ctx.rotate(o.rot);
+        // DESENARE POZA (cu translate)
+        if (o.type === "profile" && o.img.complete) {
+            ctx.save();
+            ctx.translate(o.x, o.y);
+            ctx.rotate(o.rot);
+            drawCircleImage(ctx, o.img, 0, 0, o.size);
+            ctx.restore();
+        }
 
+        // DESENARE STICKER (cu translate)
+        if (o.type === "sticker" && o.img.complete) {
+            ctx.save();
+            ctx.translate(o.x, o.y);
+            ctx.rotate(o.rot);
+            ctx.drawImage(o.img, -o.size/2, -o.size/2, o.size, o.size);
+            ctx.restore();
+        }
+
+        // DESENARE EMOJI (SEPARAT)
         if (o.type === "emoji") {
+            ctx.save();
+            ctx.translate(o.x, o.y);
+            ctx.rotate(o.rot);
             ctx.font = o.size + "px Arial";
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
             ctx.fillText(o.emoji, 0, 0);
+            ctx.restore();
         }
-
-        if (o.type === "sticker" && o.img.complete) {
-            ctx.drawImage(o.img, -o.size/2, -o.size/2, o.size, o.size);
-        }
-
-        if (o.type === "profileEmoji" && o.img.complete) {
-            drawCircleImage(ctx, o.img, 0, 0, o.size);
-            ctx.font = "40px Arial";
-            ctx.fillText(o.emoji, o.size/2 + 10, 0);
-        }
-
-        ctx.restore();
 
         if (now - o.born > 7000) {
             objects.splice(i, 1);
@@ -228,7 +246,6 @@ ws.onmessage = (event) => {
 
         const allEmojis = [...msgEmojis, ...nameEmojis];
 
-        // NU afișăm nimic dacă nu există emoji
         if (allEmojis.length === 0) return;
 
         allEmojis.forEach(e => {
